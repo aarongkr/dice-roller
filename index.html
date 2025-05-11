@@ -889,7 +889,7 @@
         function confirmResetGame() {
             if (confirm("Are you sure you want to reset all progress? This cannot be undone.")) {
                 localStorage.removeItem('diceRollerIdleGame_v1.3');
-                totalCoins = 0; baseSuccessValue = 2; bonusCoinsPerSuccess = 0;
+                totalCoins = 0; baseSuccessValue = 1; bonusCoinsPerSuccess = 0;
                 activeDiceHands = 1; automatedHands = 0;
                 stats = { totalCoinsEarned: 0, totalRolls: 0, successes: 0, failures: 0, criticals: 0 };
                 diceProbabilities = [1/6, 1/6, 1/6, 1/6, 1/6, 1/6];
