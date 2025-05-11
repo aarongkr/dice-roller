@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dice Roller: The Idle Game</title>
+    <style>
+        :root {
+            --bg-color: #2c3e50;
+            --bg-light-color: #34495e;
+            --text-color: #ecf0f1;
+            --accent-color: #f1c40f; /* Gold */
+            --button-color: #2980b9; /* Blue */
+            --button-hover-color: #3498db;
+            --disabled-color: #7f8c8d;
+            --success-color: #2ecc71;
+            --failure-color: #e74c3c;
+            --dice-bg: #ecf0f1;
+            --dice-text: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        .game-container {
+            display: flex;
+            width: 100%;
+            max-width: 1300px;
+            gap: 20px;
+        }
+
+        .sidebar {
+            width: 350px; /* Slightly wider */
+            background-color: var(--bg-light-color);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.6);
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            flex-shrink: 0; /* Prevent sidebar from shrinking too much */
+        }
+
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .game-info {
+            background-color: var(--bg-light-color);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            width: 100%;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.6);
+        }
+
+        .game-info h1 {
+            margin-top: 0;
+            color: var(--accent-color);
+            font-size: 2.5em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        #totalCoinsDisplay, #coinsPerSuccessDisplay {
+            font-size: 1.8em; /* Larger font */
+            margin: 12px 0;
+            font-weight: bold;
+        }
+        #totalCoinsDisplay span, #coinsPerSuccessDisplay span {
+            color: var(--accent-color);
+        }
+
+        .dice-area {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 25px; /* Increased gap */
+            margin-bottom: 25px;
+            min-height: 120px;
+        }
+
+        .dice-hand {
+            width: 90px; /* Larger dice */
+            height: 90px;
+            background-color: var(--dice-bg);
+            color: var(--dice-text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3.5em; /* Larger dice face */
+            border-radius: 15px; /* More rounded */
+            cursor: pointer;
+            user-select: none;
+            border: 4px solid #bdc3c7;
+            box-shadow: 0 5px 8px rgba(0,0,0,0.4);
+            transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+            position: relative; /* For animation */
+        }
+        .dice-hand:hover:not(.automated) { /* Only hover effect if not automated */
+             box-shadow: 0 7px 12px rgba(0,0,0,0.5);
+        }
+        .dice-hand:active:not(.automated) { /* Only active effect if not automated */
+            transform: scale(0.93);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .dice-hand.automated {
+            cursor: default;
+            border-color: var(--accent-color);
+        }
+        .dice-hand.rolling .dice-face {
+            animation: rollAnimation 0.3s linear infinite;
+        }
+        .dice-face {
+            display: inline-block;
+        }
+
+        @keyframes rollAnimation {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(90deg) scale(0.8); }
+            50% { transform: rotate(180deg) scale(1); }
+            75% { transform: rotate(270deg) scale(0.8); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+
+/*
+        .roll-result-text {
+            text-align: center;
+            font-size: 1.4em;
+            color: var(--success-color);
+            min-height: 1.8em;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        .roll-result-text.failure {
+            color: var(--failure-color);
+        }
+*/
+        .upgrade-section {
+            margin-bottom: 25px;
+        }
+
+        .upgrade-section h3 {
+            margin-top: 0;
+            border-bottom: 3px solid var(--accent-color);
+            padding-bottom: 8px;
+            color: var(--accent-color);
+            font-size: 1.4em;
+        }
+
+        .upgrade-button {
+            background-color: var(--button-color);
+            color: white;
+            border: none;
+            padding: 12px 18px; /* Increased padding */
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 12px;
+            width: 100%;
+            text-align: left;
+            font-size: 1em;
+            transition: background-color 0.2s, transform 0.1s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .upgrade-button:hover {
+            background-color: var(--button-hover-color);
+            transform: translateY(-1px);
+        }
+        .upgrade-button:active {
+            transform: translateY(1px);
+        }
+        .upgrade-button:disabled {
+            background-color: var(--disabled-color);
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+        .upgrade-button .cost {
+            float: right;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+        .upgrade-button .description {
+            font-size: 0.85em; /* Slightly larger */
+            color: #bdc3c7;
+            display: block;
+            margin-top: 6px;
+        }
+        .upgrade-button .purchased {
+            font-size: 0.8em;
+            color: #95a5a6;
+            display: block;
+            margin-top: 4px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            overflow: hidden; /* For rounded corners on tabs */
+        }
+        .tab-button {
+            flex-grow: 1;
+            padding: 12px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--bg-light-color);
+            border-bottom: none; /* Remove bottom border initially */
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s;
+        }
+        .tab-button:first-child { border-top-left-radius: 6px; }
+        .tab-button:last-child { border-top-right-radius: 6px; }
+        .tab-button:hover { background-color: #4e657e; }
+        .tab-button.active {
+            background-color: var(--bg-light-color);
+            border-bottom: 3px solid var(--accent-color); /* Active indicator */
+            font-weight: bold;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .stats-panel {
+            margin-top: 20px;
+            background-color: var(--bg-light-color);
+            padding: 20px;
+            border-radius: 10px;
+            width: 100%;
+        }
+        .stats-panel h3 {
+            margin-top: 0;
+            color: var(--accent-color);
+            font-size: 1.4em;
+        }
+        .stats-panel p {
+            margin: 8px 0;
+            font-size: 0.95em;
+        }
+
+        .version {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 0.8em;
+            color: var(--disabled-color);
+        }
+        
+        #saveLoadButtons {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #saveLoadButtons button {
+            margin: 5px;
+            padding: 8px 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .game-container { flex-direction: column; }
+            .sidebar { width: 100%; max-height: 350px; margin-bottom: 20px; }
+            .main-content { width: 100%; }
+            .dice-hand { width: 70px; height: 70px; font-size: 2.5em; }
+        }
+
+        .floating-text {
+            position: absolute;
+            font-size: 0.9em; /* Smaller text */
+            font-weight: bold;
+            pointer-events: none; /* So it doesn't interfere with clicks */
+            animation: floatAndFade 1.5s ease-out forwards;
+            white-space: nowrap; /* Prevent text from wrapping */
+            padding: 3px 6px;
+            border-radius: 4px;
+            background-color: rgba(44, 62, 80, 0.7); /* Semi-transparent background */
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        .floating-text.success { color: var(--success-color); }
+        .floating-text.failure { color: var(--failure-color); }
+        /* No .partial class needed anymore */
+
+        @keyframes floatAndFade {
+            0% {
+                transform: translateY(0) translateX(-50%); /* Start centered above dice */
+                opacity: 1;
+                /* left: 50%; */ /* Will be set by JS */
+                /* bottom: 100%; */ /* Will be set by JS */
+            }
+            100% {
+                transform: translateY(-40px) translateX(-50%); /* Float up */
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="sidebar">
+            <div class="tabs">
+                <button class="tab-button active" onclick="openTab(event, 'upgradesTab')">Upgrades</button>
+                <button class="tab-button" onclick="openTab(event, 'specialTab')">Special</button>
+                <button class="tab-button" onclick="openTab(event, 'scrollTab')">Scrolls</button>
+                <button class="tab-button" onclick="openTab(event, 'statsTab')">Stats</button>
+            </div>
+
+            <div id="upgradesTab" class="tab-content active">
+                <div class="upgrade-section" id="mainUpgradesSection">
+                    <h3>Coin Boosters</h3>
+                </div>
+            </div>
+
+            <div id="specialTab" class="tab-content">
+                <div class="upgrade-section" id="specialUpgradesSection">
+                    <h3>Special Enhancements</h3>
+                </div>
+            </div>
+            
+            <div id="scrollTab" class="tab-content">
+                <div class="upgrade-section" id="scrollUpgradesSection">
+                    <h3>Ancient Scrolls</h3>
+                </div>
+            </div>
+            
+            <div id="statsTab" class="tab-content">
+                 <div class="stats-panel">
+                    <h3>Statistics</h3>
+                    <p>Total Coins Earned: <span id="statsTotalCoins">0</span></p>
+                    <p>Total Dice Rolled: <span id="statsTotalRolls">0</span></p>
+                    <p>Successes (4-6): <span id="statsSuccesses">0</span></p>
+                    <p>Failures (1-3): <span id="statsFailures">0</span></p>
+                    <p>Critical Rolls: <span id="statsCriticals">0</span></p>
+                    <hr>
+                    <p>Chance to Hit Success (Default D6): <span id="chanceSuccess"></span>%</p>
+                    <p>Chance to Hit Failure (Default D6): <span id="chanceFailure"></span>%</p>
+                    <p>Critical Roll Chance: <span id="chanceCritical">0</span>%</p>
+                </div>
+                <div id="saveLoadButtons">
+                    <button class="upgrade-button" onclick="saveGame()">Save Game</button>
+                    <button class="upgrade-button" onclick="loadGame()">Load Game</button>
+                    <button class="upgrade-button" style="background-color: var(--failure-color);" onclick="confirmResetGame()">Reset Game</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="game-info">
+                <h1>Dice Roller</h1>
+                <p id="totalCoinsDisplay">Coins: <span>0</span></p>
+                <p id="coinsPerSuccessDisplay">Current Success: +<span>2</span> Coins</p>
+                <button id="globalUpgradeButton" class="upgrade-button" style="width:auto; display:block; margin: 10px auto;">
+                    Roll More Dice! (Cost: <span id="rollMoreDiceCost">75</span> Coins)
+                </button>
+            </div>
+            <div class="dice-area" id="diceArea">
+            </div>
+            <div class="roll-result-text" id="rollResultText">Roll a die!</div>
+        </div>
+    </div>
+    <div class="version">v. 1.2</div>
+
+        <script>
+        let totalCoins = 0;
+        let baseSuccessValue = 2;
+        let bonusCoinsPerSuccess = 0;
+
+        let activeDiceHands = 1;
+        let automatedHands = 0;
+        let automatedIntervals = [];
+
+        let stats = {
+            totalCoinsEarned: 0,
+            totalRolls: 0,
+            successes: 0,
+            failures: 0,
+            criticals: 0
+        };
+
+        let diceTypes = [6];
+
+        let diceProbabilities = [1/6, 1/6, 1/6, 1/6, 1/6, 1/6];
+        let outcomeThresholds = {
+            1: 0, 2: 0, 3: 0,
+            4: 2, 5: 2, 6: 2
+        };
+
+        const diceFacesUnicode = {
+            6: ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'],
+            8: ['1', '2', '3', '4', '5', '6', '7', '8']
+        };
+
+        const upgrades = {
+            main: [
+                { id: 'strongerGrip', name: "Stronger Grip", description: "Practice your grip for +X Coins on success.", baseCost: 5, costMultiplier: 1.2, effectValue: 1, purchased: 0, type: 'coin_boost' },
+                { id: 'precisionThrow', name: "Precision Throw", description: "Hone your aim for +Y Coins on success.", baseCost: 100, costMultiplier: 1.3, effectValue: 5, purchased: 0, type: 'coin_boost' },
+                { id: 'ancientDice', name: "Ancient Dice Lore", description: "Secrets of fortune for +Z Coins on success.", baseCost: 1000, costMultiplier: 1.4, effectValue: 25, purchased: 0, type: 'coin_boost' },
+                { id: 'diceWhisperer', name: "Dice Whisperer", description: "Commune with the dice for massive gains.", baseCost: 50000, costMultiplier: 1.5, effectValue: 100, purchased: 0, type: 'coin_boost' },
+                { id: 'probabilityBender', name: "Probability Bender", description: "Bend fate to your will.", baseCost: 1000000, costMultiplier: 1.6, effectValue: 500, purchased: 0, type: 'coin_boost' },
+            ],
+            special: [
+                { id: 'automatedRoller', name: "Automated Roller", description: "Automates one die hand.", baseCost: 500, costMultiplier: 3, maxPurchases: 1, purchased: 0, type: 'automation' },
+                { id: 'autoRollSpeed', name: "Faster Auto-Rolls", description: "Decrease auto-roll interval by 200ms.", baseCost: 2000, costMultiplier: 2.5, maxPurchases: 8, purchased: 0, type: 'auto_speed_boost', effectValue: 200 },
+                { id: 'improvedOdds', name: "Improved Odds (D6)", description: "Shift D6 outcome thresholds for better results (4-6 -> 3-6 -> 2-6 -> 1-6).", baseCost: 150000, costMultiplier: 5, maxPurchases: 3, purchased: 0, type: 'odds_shift' },
+                { id: 'criticalRoll', name: "Critical Roll", description: "0.5% chance for 5x Coins on success. (+0.5% per upgrade)", baseCost: 175000000, costMultiplier: 10, maxPurchases: 10, purchased: 0, type: 'critical_chance', effectValue: 0.005, critMultiplier: 5 }
+            ],
+            scroll: [
+                { id: 'unlockD8', name: "Unlock D8", description: "Change one hand to roll a D8. Success on 5-8.", baseCost: 10000000, costMultiplier: 1, maxPurchases: 1, purchased: 0, type: 'dice_type_change', newDieType: 8, successMin: 5 }
+            ]
+        };
+
+        let rollMoreDiceCost = 75;
+        const rollMoreDiceCostMultipliers = [75, 405, 2100, 10000, 50000, 250000, 1000000, 5000000, 25000000, 125000000];
+
+        const totalCoinsDisplay = document.getElementById('totalCoinsDisplay').querySelector('span');
+        const coinsPerSuccessDisplay = document.getElementById('coinsPerSuccessDisplay');
+        const diceArea = document.getElementById('diceArea');
+        const globalRollResultText = document.getElementById('rollResultText'); // Renamed for clarity
+        const mainUpgradesSection = document.getElementById('mainUpgradesSection');
+        const specialUpgradesSection = document.getElementById('specialUpgradesSection');
+        const scrollUpgradesSection = document.getElementById('scrollUpgradesSection');
+        const globalUpgradeButton = document.getElementById('globalUpgradeButton');
+        const rollMoreDiceCostSpan = document.getElementById('rollMoreDiceCost');
+
+        const statsTotalCoins = document.getElementById('statsTotalCoins');
+        const statsTotalRolls = document.getElementById('statsTotalRolls');
+        const statsSuccesses = document.getElementById('statsSuccesses');
+        const statsFailures = document.getElementById('statsFailures');
+        const statsCriticals = document.getElementById('statsCriticals');
+        const chanceSuccessDisplay = document.getElementById('chanceSuccess');
+        const chanceFailureDisplay = document.getElementById('chanceFailure');
+        const chanceCriticalDisplay = document.getElementById('chanceCritical');
+
+        function formatNumber(num) {
+            if (num === Infinity) return "Infinite";
+            if (num >= 1e12) return (num / 1e12).toFixed(2) + " Trillion";
+            if (num >= 1e9) return (num / 1e9).toFixed(2) + " Billion";
+            if (num >= 1e6) return (num / 1e6).toFixed(2) + " Million";
+            if (num >= 1e3) return (num / 1e3).toFixed(2) + "k";
+            return Math.floor(num).toString();
+        }
+
+        function getCurrentSuccessCoins() {
+            return baseSuccessValue + bonusCoinsPerSuccess;
+        }
+
+        function updateCoinsPerSuccessDisplay() {
+            const currentSuccess = getCurrentSuccessCoins();
+            coinsPerSuccessDisplay.innerHTML = `Current Success: +<span>${formatNumber(currentSuccess)}</span> Coins`;
+        }
+
+        function updateUI() {
+            totalCoinsDisplay.textContent = formatNumber(totalCoins);
+            updateCoinsPerSuccessDisplay();
+
+            [...upgrades.main, ...upgrades.special, ...upgrades.scroll].forEach(upgrade => {
+                const btn = document.getElementById(`btn-${upgrade.id}`);
+                if (btn) {
+                    const cost = calculateUpgradeCost(upgrade);
+                    btn.querySelector('.cost').textContent = formatNumber(cost);
+                    btn.disabled = totalCoins < cost || (upgrade.maxPurchases && upgrade.purchased >= upgrade.maxPurchases);
+                     if (upgrade.maxPurchases && upgrade.purchased >= upgrade.maxPurchases) {
+                         btn.querySelector('.cost').textContent = "MAX";
+                    }
+                }
+            });
+
+            rollMoreDiceCostSpan.textContent = formatNumber(rollMoreDiceCost);
+            globalUpgradeButton.disabled = totalCoins < rollMoreDiceCost || activeDiceHands >= (rollMoreDiceCostMultipliers.length +1);
+            if (activeDiceHands >= (rollMoreDiceCostMultipliers.length + 1) ) {
+                rollMoreDiceCostSpan.textContent = "MAX";
+            }
+
+            statsTotalCoins.textContent = formatNumber(stats.totalCoinsEarned);
+            statsTotalRolls.textContent = formatNumber(stats.totalRolls);
+            statsSuccesses.textContent = formatNumber(stats.successes);
+            statsFailures.textContent = formatNumber(stats.failures);
+            statsCriticals.textContent = formatNumber(stats.criticals);
+            updateChanceDisplays();
+        }
+
+        function updateChanceDisplays() {
+            let successMinValueD6 = 4;
+            const oddsUpgrade = upgrades.special.find(u => u.id === 'improvedOdds');
+            if (oddsUpgrade && oddsUpgrade.purchased > 0) {
+                if (oddsUpgrade.purchased === 1) successMinValueD6 = 3;
+                else if (oddsUpgrade.purchased === 2) successMinValueD6 = 2;
+                else if (oddsUpgrade.purchased >= 3) successMinValueD6 = 1;
+            }
+            chanceSuccessDisplay.textContent = (((6 - successMinValueD6 + 1) / 6) * 100).toFixed(2);
+            chanceFailureDisplay.textContent = (((successMinValueD6 - 1) / 6) * 100).toFixed(2);
+
+            const critUpgrade = upgrades.special.find(u => u.id === 'criticalRoll');
+            if (critUpgrade) {
+                chanceCriticalDisplay.textContent = (critUpgrade.purchased * critUpgrade.effectValue * 100).toFixed(2);
+            }
+        }
+
+        function showFloatingText(message, resultClass, handElement) {
+            const textElement = document.createElement('div');
+            textElement.className = `floating-text ${resultClass}`;
+            textElement.textContent = message;
+
+            // Position above the hand element
+            const handRect = handElement.getBoundingClientRect();
+            const gameAreaRect = diceArea.getBoundingClientRect(); // Use diceArea for relative positioning
+
+            // Calculate position relative to the diceArea
+            // We want the text to start centered horizontally with the die, and just above it.
+            textElement.style.position = 'absolute'; // Ensure it's absolute to a positioned parent (diceArea)
+            textElement.style.left = `${handElement.offsetLeft + handElement.offsetWidth / 2}px`;
+            textElement.style.top = `${handElement.offsetTop - 5}px`; // Start slightly above, adjust as needed
+
+            diceArea.appendChild(textElement); // Append to diceArea which should be position:relative or similar
+
+            setTimeout(() => {
+                if (textElement.parentNode) { // Check if it's still in the DOM
+                    textElement.remove();
+                }
+            }, 1450); // Remove after animation (1.5s)
+        }
+
+
+        function rollDieForHand(handIndex) {
+            const handElement = document.getElementById(`hand-${handIndex}`);
+            if (!handElement || handElement.classList.contains('rolling')) return;
+
+            handElement.classList.add('rolling');
+            const dieType = diceTypes[handIndex];
+            const faces = diceFacesUnicode[dieType];
+
+            const rollInterval = setInterval(() => {
+                handElement.querySelector('.dice-face').textContent = faces[Math.floor(Math.random() * dieType)];
+            }, 50);
+
+            setTimeout(() => {
+                clearInterval(rollInterval);
+                const roll = Math.floor(Math.random() * dieType) + 1;
+                handElement.querySelector('.dice-face').textContent = faces[roll - 1];
+                handElement.classList.remove('rolling');
+
+                let coinsEarned = 0;
+                let resultMessage = "";
+                let resultClass = "";
+
+                let successMinValue = 4;
+                if (dieType === 6) {
+                    const oddsUpgrade = upgrades.special.find(u => u.id === 'improvedOdds');
+                    if (oddsUpgrade && oddsUpgrade.purchased > 0) {
+                        if (oddsUpgrade.purchased === 1) successMinValue = 3;
+                        else if (oddsUpgrade.purchased === 2) successMinValue = 2;
+                        else if (oddsUpgrade.purchased >= 3) successMinValue = 1;
+                    }
+                } else if (dieType === 8) {
+                    const d8Upgrade = upgrades.scroll.find(u => u.id === 'unlockD8');
+                    if (diceTypes[handIndex] === 8) { // Ensure this hand is actually a D8
+                        successMinValue = d8Upgrade.successMin;
+                    }
+                }
+
+                if (roll >= successMinValue) {
+                    coinsEarned = getCurrentSuccessCoins();
+                    if (dieType === 8) coinsEarned = Math.floor(coinsEarned * 1.5);
+                    resultMessage = `+${formatNumber(coinsEarned)}`; // Simplified message
+                    resultClass = "success";
+                    stats.successes++;
+
+                    const critUpgrade = upgrades.special.find(u => u.id === 'criticalRoll');
+                    if (critUpgrade && critUpgrade.purchased > 0 && Math.random() < (critUpgrade.purchased * critUpgrade.effectValue)) {
+                        const critBonus = coinsEarned * (critUpgrade.critMultiplier - 1);
+                        coinsEarned += critBonus;
+                        resultMessage = `CRIT! +${formatNumber(coinsEarned)}!`;
+                        stats.criticals++;
+                    }
+                } else {
+                    resultMessage = `+0`; // Simplified message
+                    resultClass = "failure";
+                    stats.failures++;
+                }
+
+                totalCoins += coinsEarned;
+                stats.totalCoinsEarned += coinsEarned;
+                stats.totalRolls++;
+
+                showFloatingText(resultMessage, resultClass, handElement);
+
+                updateUI();
+            }, 300);
+        }
+
+        function calculateUpgradeCost(upgrade) {
+            return Math.floor(upgrade.baseCost * Math.pow(upgrade.costMultiplier, upgrade.purchased));
+        }
+
+        function buyUpgrade(upgradeId, type) {
+            let upgrade;
+            if (type === 'main') upgrade = upgrades.main.find(u => u.id === upgradeId);
+            else if (type === 'special') upgrade = upgrades.special.find(u => u.id === upgradeId);
+            else if (type === 'scroll') upgrade = upgrades.scroll.find(u => u.id === upgradeId);
+
+            if (!upgrade) return;
+
+            const cost = calculateUpgradeCost(upgrade);
+            if (totalCoins >= cost && (!upgrade.maxPurchases || upgrade.purchased < upgrade.maxPurchases)) {
+                totalCoins -= cost;
+                upgrade.purchased++;
+
+                if (upgrade.type === 'coin_boost') bonusCoinsPerSuccess += upgrade.effectValue;
+                else if (upgrade.type === 'automation') {
+                    if (automatedHands < activeDiceHands) {
+                         automatedHands++;
+                         startAutomation();
+                    } else {
+                        totalCoins += cost;
+                        upgrade.purchased--;
+                        alert("You need more dice hands to automate!");
+                    }
+                }
+                else if (upgrade.type === 'auto_speed_boost') {
+                    startAutomation();
+                }
+                else if (upgrade.type === 'odds_shift') applyOddsShift(upgrade.purchased);
+                else if (upgrade.type === 'dice_type_change') {
+                    let changedHand = false;
+                    for(let i=0; i < diceTypes.length; i++) {
+                        if (diceTypes[i] === 6) {
+                            diceTypes[i] = upgrade.newDieType;
+                            const handEl = document.getElementById(`hand-${i}`);
+                            if(handEl) handEl.querySelector('.dice-face').textContent = diceFacesUnicode[upgrade.newDieType][0];
+                            changedHand = true;
+                            break;
+                        }
+                    }
+                    if (!changedHand) {
+                        totalCoins += cost;
+                        upgrade.purchased--;
+                        alert("No D6 hands available to upgrade to D8!");
+                    }
+                }
+
+                document.getElementById(`purchased-${upgrade.id}`).textContent = `Purchased: ${upgrade.purchased} ${(upgrade.maxPurchases && upgrade.purchased >= upgrade.maxPurchases) ? '/ '+upgrade.maxPurchases : (upgrade.maxPurchases ? '/ '+upgrade.maxPurchases : '')}`;
+                if (upgrade.maxPurchases && upgrade.purchased >= upgrade.maxPurchases) {
+                     document.getElementById(`btn-${upgrade.id}`).querySelector('.cost').textContent = "MAX";
+                }
+                updateUI();
+                saveGame();
+            }
+        }
+
+        function applyOddsShift(level) {
+            updateChanceDisplays();
+        }
+
+        function createUpgradeButton(upgrade, type) {
+            const cost = calculateUpgradeCost(upgrade);
+            const button = document.createElement('button');
+            button.id = `btn-${upgrade.id}`;
+            button.className = 'upgrade-button';
+            button.onclick = () => buyUpgrade(upgrade.id, type);
+
+            let effectText = "";
+            if (upgrade.type === 'coin_boost') effectText = `(+${formatNumber(upgrade.effectValue)} to success)`; // Format effect value
+            else if (upgrade.type === 'odds_shift') effectText = `(Improves D6 outcomes)`;
+            else if (upgrade.type === 'critical_chance') effectText = `(+${(upgrade.effectValue * 100).toFixed(1)}% crit chance)`;
+            else if (upgrade.type === 'automation') effectText = `(Automates 1 hand)`;
+            else if (upgrade.type === 'auto_speed_boost') effectText = `(-${upgrade.effectValue}ms interval)`;
+            else if (upgrade.type === 'dice_type_change') effectText = `(Change 1 hand to D${upgrade.newDieType})`;
+
+            button.innerHTML = `
+                ${upgrade.name} ${effectText} <span class="cost">${formatNumber(cost)}</span>
+                <span class="description">${upgrade.description.replace('X', formatNumber(upgrade.effectValue)).replace('Y', formatNumber(upgrade.effectValue)).replace('Z', formatNumber(upgrade.effectValue))}</span>
+                <span class="purchased" id="purchased-${upgrade.id}">Purchased: ${upgrade.purchased} ${(upgrade.maxPurchases && upgrade.purchased >= upgrade.maxPurchases) ? '/ '+upgrade.maxPurchases : (upgrade.maxPurchases ? '/ '+upgrade.maxPurchases : '')}</span>
+            `;
+            return button;
+        }
+
+
+        function generateUpgradeButtons() {
+            mainUpgradesSection.innerHTML = '<h3>Coin Boosters</h3>';
+            upgrades.main.forEach(upgrade => mainUpgradesSection.appendChild(createUpgradeButton(upgrade, 'main')));
+
+            specialUpgradesSection.innerHTML = '<h3>Special Enhancements</h3>';
+            upgrades.special.forEach(upgrade => {
+                if (upgrade.id === 'automatedRoller') upgrade.maxPurchases = activeDiceHands;
+                specialUpgradesSection.appendChild(createUpgradeButton(upgrade, 'special'));
+            });
+
+            scrollUpgradesSection.innerHTML = '<h3>Ancient Scrolls</h3>';
+            upgrades.scroll.forEach(upgrade => {
+                 if (upgrade.id === 'unlockD8') upgrade.maxPurchases = activeDiceHands;
+                scrollUpgradesSection.appendChild(createUpgradeButton(upgrade, 'scroll'));
+            });
+        }
+
+        function createDiceHand(index) {
+            const hand = document.createElement('div');
+            hand.className = 'dice-hand';
+            hand.id = `hand-${index}`;
+
+            const dieFaceSpan = document.createElement('span');
+            dieFaceSpan.className = 'dice-face';
+            dieFaceSpan.textContent = diceFacesUnicode[diceTypes[index]][0];
+            hand.appendChild(dieFaceSpan);
+
+            if (index >= automatedHands) {
+                 hand.onclick = () => rollDieForHand(index);
+            } else {
+                hand.classList.add('automated');
+                hand.onclick = null;
+            }
+            diceArea.appendChild(hand);
+        }
+
+        function addDiceHand() {
+             if (totalCoins >= rollMoreDiceCost && activeDiceHands < (rollMoreDiceCostMultipliers.length +1)) {
+                totalCoins -= rollMoreDiceCost;
+                diceTypes.push(6);
+                activeDiceHands++;
+                createDiceHand(activeDiceHands - 1);
+
+                if (activeDiceHands -1 < rollMoreDiceCostMultipliers.length) {
+                     rollMoreDiceCost = rollMoreDiceCostMultipliers[activeDiceHands-1];
+                } else {
+                    globalUpgradeButton.disabled = true;
+                    rollMoreDiceCostSpan.textContent = "MAX";
+                }
+
+                const autoUpgrade = upgrades.special.find(u => u.id === 'automatedRoller');
+                if (autoUpgrade) autoUpgrade.maxPurchases = activeDiceHands;
+                const d8Upgrade = upgrades.scroll.find(u => u.id === 'unlockD8');
+                if (d8Upgrade) d8Upgrade.maxPurchases = activeDiceHands;
+
+                generateUpgradeButtons();
+                startAutomation();
+                updateUI();
+                saveGame();
+            }
+        }
+
+        globalUpgradeButton.onclick = addDiceHand;
+
+        function startAutomation() {
+            automatedIntervals.forEach((intervalId, index) => {
+                if (intervalId) clearInterval(intervalId);
+                automatedIntervals[index] = null; // Clear the stored ID
+            });
+
+            const speedUpgrade = upgrades.special.find(u => u.id === 'autoRollSpeed');
+            let intervalTime = 2000 - (speedUpgrade ? speedUpgrade.purchased * speedUpgrade.effectValue : 0);
+            intervalTime = Math.max(350, intervalTime);
+
+            for (let i = 0; i < activeDiceHands; i++) {
+                const handElement = document.getElementById(`hand-${i}`);
+                if (handElement) {
+                    if (i < automatedHands) { // This hand should be automated
+                        handElement.classList.add('automated');
+                        handElement.onclick = null;
+                        if (!automatedIntervals[i]) { // Start new interval only if not already running for this hand
+                            const intervalId = setInterval(() => rollDieForHand(i), intervalTime);
+                            automatedIntervals[i] = intervalId;
+                        }
+                    } else { // This hand should NOT be automated
+                        handElement.classList.remove('automated');
+                        handElement.onclick = () => rollDieForHand(i);
+                        if (automatedIntervals[i]) { // Clear interval if it was previously automated
+                            clearInterval(automatedIntervals[i]);
+                            automatedIntervals[i] = null;
+                        }
+                    }
+                }
+            }
+        }
+
+
+        function openTab(evt, tabName) {
+            const tabContents = document.getElementsByClassName('tab-content');
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove('active');
+            }
+            const tabButtons = document.getElementsByClassName('tab-button');
+            for (let i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove('active');
+            }
+            document.getElementById(tabName).classList.add('active');
+            evt.currentTarget.classList.add('active');
+        }
+
+        function saveGame() {
+            const gameState = {
+                totalCoins, baseSuccessValue, bonusCoinsPerSuccess, activeDiceHands, automatedHands,
+                stats, diceProbabilities, outcomeThresholds, rollMoreDiceCost,
+                upgradesPurchased: {
+                    main: upgrades.main.map(u => ({id: u.id, purchased: u.purchased})),
+                    special: upgrades.special.map(u => ({id: u.id, purchased: u.purchased})),
+                    scroll: upgrades.scroll.map(u => ({id: u.id, purchased: u.purchased})),
+                },
+                diceTypes
+            };
+            localStorage.setItem('diceRollerIdleGame_v1.3', JSON.stringify(gameState)); // Version bump for save key
+            console.log("Game Saved!");
+            globalRollResultText.textContent = "Game Saved!";
+            globalRollResultText.className = 'roll-result-text success';
+        }
+
+        function loadGame() {
+            const savedState = localStorage.getItem('diceRollerIdleGame_v1.3');
+            if (savedState) {
+                const gameState = JSON.parse(savedState);
+                totalCoins = gameState.totalCoins || 0;
+                baseSuccessValue = gameState.baseSuccessValue || 2;
+                bonusCoinsPerSuccess = gameState.bonusCoinsPerSuccess || 0;
+                activeDiceHands = gameState.activeDiceHands || 1;
+                automatedHands = gameState.automatedHands || 0;
+                stats = gameState.stats || { totalCoinsEarned: 0, totalRolls: 0, successes: 0, failures: 0, criticals: 0 };
+                diceProbabilities = gameState.diceProbabilities || [1/6, 1/6, 1/6, 1/6, 1/6, 1/6];
+                outcomeThresholds = gameState.outcomeThresholds || { 1: 0, 2: 0, 3: 0, 4: 2, 5: 2, 6: 2 };
+                rollMoreDiceCost = gameState.rollMoreDiceCost || 75;
+                diceTypes = gameState.diceTypes || Array(activeDiceHands).fill(6);
+
+                // Ensure diceTypes has the correct length
+                if (diceTypes.length !== activeDiceHands) {
+                    const oldLength = diceTypes.length;
+                    diceTypes.length = activeDiceHands;
+                    diceTypes.fill(6, oldLength); // Fill new spots with D6
+                }
+
+
+                if(gameState.upgradesPurchased) {
+                    if(gameState.upgradesPurchased.main) {
+                        gameState.upgradesPurchased.main.forEach(savedU => {
+                            const gameU = upgrades.main.find(u => u.id === savedU.id);
+                            if (gameU) gameU.purchased = savedU.purchased;
+                        });
+                    }
+                    if(gameState.upgradesPurchased.special) {
+                        gameState.upgradesPurchased.special.forEach(savedU => {
+                            const gameU = upgrades.special.find(u => u.id === savedU.id);
+                            if (gameU) gameU.purchased = savedU.purchased;
+                        });
+                    }
+                    if(gameState.upgradesPurchased.scroll) {
+                        gameState.upgradesPurchased.scroll.forEach(savedU => {
+                            const gameU = upgrades.scroll.find(u => u.id === savedU.id);
+                            if (gameU) gameU.purchased = savedU.purchased;
+                        });
+                    }
+                }
+
+
+                diceArea.innerHTML = '';
+                for (let i = 0; i < activeDiceHands; i++) {
+                    createDiceHand(i);
+                }
+                generateUpgradeButtons(); // Regenerate buttons to reflect loaded purchases
+                startAutomation(); // This will set up intervals based on loaded automatedHands and speed
+                applyOddsShift(upgrades.special.find(u => u.id === 'improvedOdds').purchased);
+                updateUI();
+                console.log("Game Loaded!");
+                globalRollResultText.textContent = "Game Loaded!";
+                globalRollResultText.className = 'roll-result-text success';
+
+            } else {
+                console.log("No saved game found for v1.3.");
+                globalRollResultText.textContent = "No saved game found. Starting fresh!";
+                globalRollResultText.className = 'roll-result-text failure';
+                // Initialize for a fresh game
+                diceTypes = Array(activeDiceHands).fill(6);
+                diceArea.innerHTML = '';
+                for (let i = 0; i < activeDiceHands; i++) {
+                    createDiceHand(i);
+                }
+                generateUpgradeButtons();
+                updateUI();
+            }
+        }
+
+        function confirmResetGame() {
+            if (confirm("Are you sure you want to reset all progress? This cannot be undone.")) {
+                localStorage.removeItem('diceRollerIdleGame_v1.3');
+                totalCoins = 0; baseSuccessValue = 2; bonusCoinsPerSuccess = 0;
+                activeDiceHands = 1; automatedHands = 0;
+                stats = { totalCoinsEarned: 0, totalRolls: 0, successes: 0, failures: 0, criticals: 0 };
+                diceProbabilities = [1/6, 1/6, 1/6, 1/6, 1/6, 1/6];
+                outcomeThresholds = { 1: 0, 2: 0, 3: 0, 4: 2, 5: 2, 6: 2 };
+                rollMoreDiceCost = 75;
+                diceTypes = [6];
+
+                upgrades.main.forEach(u => u.purchased = 0);
+                upgrades.special.forEach(u => u.purchased = 0);
+                upgrades.scroll.forEach(u => u.purchased = 0);
+
+                automatedIntervals.forEach(clearInterval);
+                automatedIntervals = [];
+
+                diceArea.innerHTML = '';
+                createDiceHand(0);
+                generateUpgradeButtons();
+                updateUI();
+                console.log("Game Reset!");
+                globalRollResultText.textContent = "Game Reset!";
+                globalRollResultText.className = 'roll-result-text';
+            }
+        }
+
+        function initializeGame() {
+            loadGame();
+            // Fallback initialization if loadGame found no save or if critical data is missing
+            if (diceTypes.length === 0 || diceTypes.length !== activeDiceHands) {
+                diceTypes = Array(activeDiceHands).fill(6);
+                diceArea.innerHTML = ''; // Clear if it wasn't cleared by loadGame
+                for (let i = 0; i < activeDiceHands; i++) {
+                    createDiceHand(i);
+                }
+            }
+            // Ensure UI elements dependent on these are correct even for a new game.
+            generateUpgradeButtons();
+            startAutomation();
+            updateUI();
+        }
+
+        initializeGame();
+    </script>
+</body>
+</html>
